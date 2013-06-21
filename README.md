@@ -8,7 +8,7 @@ Dependencies:
 * Saltstack > 0.15.3
 * boto
 * python (of course)
-* 
+* aws access key and secret key. (must have full ec2 permissions via IAM.)
 
 Installation:
 ------------
