@@ -6,18 +6,56 @@ from mako.template import Template
 
 CREDENTIALS_FILE = os.path.join(os.path.dirname(__file__), 'venv', 'aws.cfg')
 
-input_var = input("Enter config file name (in quotes): ")
-#f = file(input_var)
-f = Template(filename=input_var).render()
-cfg = Config(f)
-print(_green("Loading ec2 settings")) 
+def load_config():
+  input_var = prompt('Enter config file name')
+  f = Template(filename=input_var).render()
+  cfg = Config(f)
+  print(_green("Loading ec2 settings")) 
 
+def connect():
+  conn = boto.ec2.connect_to_region(cfg['region'], 
+    aws_access_key_id=cfg['access_key'],
+    aws_secret_access_key=cfg['secret_key'])
 
-conn = boto.ec2.connect_to_region(cfg['region'], 
-  aws_access_key_id=cfg['access_key'],
-  aws_secret_access_key=cfg['secret_key'])
+def has_credentials():
+    return os.path.isfile(CREDENTIALS_FILE)
 
-def launchInstance():
+def save_credentials(access_key_id, secret_access_key):
+    config = SafeConfigParser()
+    config.add_section('aws')
+    config.set('aws', 'access_key_id', access_key_id)
+    config.set('aws', 'secret_access_key', secret_access_key)
+    with open(CREDENTIALS_FILE, 'w') as fp:
+        config.write(fp)
+    os.chmod(CREDENTIALS_FILE, 0600)
+
+def attachEBS(instance):
+  '''Attach the default-sized EBS volume to that instance''' 
+  # Create a volume in the same availability zone as the instance
+  vol = conn.create_volume(cfg['data_disk_size'], instance.placement)
+  # Attach it as /dev/sdb1
+  vol_status = vol.attach(instance.id, '/dev/sdb1')  
+  print('created volume:' + vol_status)
+
+@task
+def check_credentials():
+    """
+    Ensure that AWS API credentials exist
+    """
+    if not aws.has_credentials():
+        access_key_id = prompt('Access Key ID?')
+        secret_access_key = prompt('Secret Access Key?')
+        aws.save_credentials(access_key_id, secret_access_key)
+
+@task
+def launch_instance():
+    """
+    launch an AWS instance with preset user-data
+    """
+
+  check_credentials()
+  load_config()
+  connect()
 
   user_data = Template(filename=cfg['bootstrap_script']).render(hostname=cfg['hostname'],salt_master_fqdn=cfg['salt_master_fqdn'][0])
 
@@ -91,11 +129,3 @@ def launchInstance():
   if cfg['data_disk_options']['enabled'] == True:
     #attach EBS Drive
     attachEBS(instance)
-
-def attachEBS(instance):
-  '''Attach the default-sized EBS volume to that instance''' 
-  # Create a volume in the same availability zone as the instance
-  vol = conn.create_volume(cfg['data_disk_size'], instance.placement)
-  # Attach it as /dev/sdh
-  vol_status = vol.attach(instance.id, '/dev/sdb1')  
-  print('created volume:' + vol_status)   
