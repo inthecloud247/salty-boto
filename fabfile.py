@@ -1,5 +1,6 @@
 import boto.ec2
 from fabric.colors import green as _green, yellow as _yellow
+from fabric.api import *
 from config import *
 import time
 from mako.template import Template
@@ -7,7 +8,7 @@ from mako.template import Template
 CREDENTIALS_FILE = os.path.join(os.path.dirname(__file__), 'venv', 'aws.cfg')
 
 def load_config():
-  input_var = prompt('Enter config file name')
+  input_var = prompt('Enter config file name: ')
   f = Template(filename=input_var).render()
   cfg = Config(f)
   print(_green("Loading ec2 settings")) 
@@ -43,8 +44,8 @@ def check_credentials():
     Ensure that AWS API credentials exist
     """
     if not aws.has_credentials():
-        access_key_id = prompt('Access Key ID?')
-        secret_access_key = prompt('Secret Access Key?')
+        access_key_id = prompt('Enter Access Key ID: ')
+        secret_access_key = prompt('Enter Secret Access Key: ')
         aws.save_credentials(access_key_id, secret_access_key)
 
 @task
