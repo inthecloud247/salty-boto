@@ -53,7 +53,6 @@ def launch_instance():
     """
     launch an AWS instance with preset user-data
     """
-
   check_credentials()
   load_config()
   connect()
